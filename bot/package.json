@@ -1,0 +1,12 @@
+{
+  "name": "culture-orbital-bot",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "puregram": "^3.11.0",
+    "dotenv": "^16.4.5"
+  }
+}

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Орбиталь — Культура</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="library.js"></script>
+<script src="achievements.js"></script>
+<style>
+:root{--bg:#0b0f19;--gold:#f5c451;--green:#31e08a;--txt:#eef2ff;--muted:#8b97b5}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--txt);font-family:system-ui,sans-serif}
+#app{height:100%;display:flex;flex-direction:column;max-width:100%;overflow:hidden}
+.tabs{display:flex;gap:4px;padding:8px 10px;background:#0e1424;flex-shrink:0}
+.tabs button{flex:1;background:#1a2338;color:#8b97b5;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:8px 4px;font-size:12px;font-weight:700}
+.tabs button.on{background:linear-gradient(145deg,#ffe7a3,#f5c451);color:#0d1220}
+.screens{flex:1;overflow-y:auto;padding:10px 12px 20px}
+.screen{display:none}
+.screen.on{display:block}
+h1{color:var(--gold);margin:6px 0 10px;font-size:22px;text-align:center}
+.bal{font-size:24px;font-weight:800;color:#fff;margin:6px 0;text-align:center}
+.ps{color:var(--green);font-weight:700;text-align:center;margin-bottom:10px}
+button.main{background:linear-gradient(145deg,#ffe7a3,var(--gold));border:0;border-radius:14px;padding:12px 20px;font-weight:800;cursor:pointer;display:block;margin:8px auto;width:80%;max-width:280px}
+.card{background:#141b2d;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:12px;margin:8px 0}
+.quote{font-style:italic;color:var(--muted);font-size:13px;margin-top:6px}
+
+.tabs{display:flex;gap:6px;margin:10px 0;width:100%;max-width:420px}
+.tabs button{flex:1;background:#1a2338;color:#8b97b5;border:1px solid rgba(255,255,255,.07)}
+.tabs button.on{background:linear-gradient(145deg,#ffe7a3,#f5c451);color:#0d1220}
+.bubble{
+  position:fixed;left:50%;top:30%;transform:translateX(-50%);
+  background:rgba(20,27,45,.95);border:1px solid rgba(245,196,81,.4);
+  border-radius:16px;padding:16px 20px;max-width:340px;text-align:center;
+  box-shadow:0 20px 40px -16px #000;z-index:100;
+  animation:fadeIn 0.4s ease, fadeOut 0.8s ease 4.2s forwards;
+  pointer-events:none;
+}
+.bubble .q{font-style:italic;font-size:14px;line-height:1.5}
+.bubble .src{font-size:11px;color:#8b97b5;margin-top:8px}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%)}}
+@keyframes fadeOut{to{opacity:0;transform:translateX(-50%) translateY(-10px)}}
+.screen{display:none}
+.screen.on{display:block}
+</style>
+</head>
+<body>
+
+<div id="startScreen" style="position:fixed;inset:0;background:#000;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center">
+  <video id="introVideo" autoplay muted loop playsinline autoplay muted playsinline style="width:100%;max-width:480px;border-radius:12px;margin-bottom:16px">
+    <source src="orbital.mp4" type="video/mp4">
+  </video>
+  <h2 style="color:#f5c451;margin:8px 0">Приветствуем тебя на орбиталище</h2>
+  <p style="color:#8b97b5;font-size:14px;max-width:360px;line-height:1.5">Здесь тебе нужно будет строить новые системы, помогать цивилизации Культуры развиваться и расти.</p>
+  <button id="startGame" style="margin-top:20px;background:linear-gradient(145deg,#ffe7a3,#f5c451);border:0;border-radius:14px;padding:12px 28px;font-weight:800;cursor:pointer">Начать</button>
+</div>
+<div id="app" style="display:none">
+<div class="tabs">
+  <button class="on" data-tab="main">Орбиталь</button>
+  <button data-tab="library">Библиотека</button>
+  <button data-tab="ach">Достижения</button>
+</div>
+<div class="screens">
+<div id="screen-main" class="screen on">
+  <h1>🌌 Орбиталь</h1>
+  <div class="bal">Энергия: <span id="energy">0</span></div>
+  <div class="ps" id="perSec">+0 / сек</div>
+  <button class="main" id="tap">⚡ Собрать энергию</button>
+  <div class="card">
+    <b>Секции орбитали</b>
+    <div id="sections"></div>
+  </div>
+</div>
+<div id="screen-library" class="screen"></div>
+<div id="screen-ach" class="screen"></div>
+</div>
+</div>
+
+<script>
+window.LIBRARY = [
+  { id:'l1', req:50, text:'Деньги — признак бедности.', work:'Игрок', year:1988 },
+  { id:'l2', req:500, text:'Культура не завоёвывает. Она убеждает.', work:'Игрок', year:1988 },
+  { id:'l3', req:2000, text:'Орбиталь — это не место. Это состояние общества.', work:'Игрок', year:1988 },
+  { id:'l4', req:10000, text:'Майнд думает быстрее, чем ты успеваешь моргнуть.', work:'Избыток', year:1996 },
+  { id:'l5', req:50000, text:'Special Circumstances делают то, чего не делают другие — потому что кто-то должен.', work:'Игрок', year:1988 },
+  { id:'l6', req:200000, text:'Мы не боги. Мы просто очень хорошо организованы.', work:'Последняя теорема', year:2010 }
+];
+window.ACHIEVEMENTS = window.ACHIEVEMENTS || [
+  { id:'a1', req:10, name:'Первый контакт', desc:'Собрать 10 энергии' },
+  { id:'a2', req:100, name:'Стабильная орбиталь', desc:'Собрать 100 энергии' },
+  { id:'a3', req:1000, name:'Экспансия', desc:'Собрать 1 000 энергии' },
+  { id:'a4', req:10000, name:'Новые системы', desc:'Собрать 10 000 энергии' },
+  { id:'a5', req:100000, name:'Поддержание Культуры', desc:'Собрать 100 000 энергии' }
+];
+</script>
+<script>
+
+document.getElementById('startGame').onclick = function(){
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  const v = document.getElementById('introVideo');
+  if(v) v.pause();
+};
+
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+const SECTIONS = [
+  { id:'hub', name:'Центральный хаб', base:1, cost:15, mult:1.15, unlock:0 },
+  { id:'mind', name:'Майнд', base:8, cost:120, mult:1.18, unlock:0 },
+  { id:'ship', name:'Корабль Культуры', base:40, cost:900, mult:1.2, unlock:0 },
+  { id:'contact', name:'Контакт', base:180, cost:6000, mult:1.22, unlock:0 },
+  { id:'sc', name:'Special Circumstances', base:900, cost:45000, mult:1.25, unlock:0 },
+  { id:'plate', name:'Плита орбитали', base:2500, cost:200000, mult:1.28, unlock:3600 },
+  { id:'gsv', name:'GSV (Общий Системный Аппарат)', base:12000, cost:1500000, mult:1.3, unlock:3600 },
+  { id:'sublimed', name:'Вознесённые', base:60000, cost:10000000, mult:1.35, unlock:7200 }
+];
+
+const QUOTES = [
+  { id:'q1', req:100, text:'«Деньги — признак бедности.» — Иэн М. Бэнкс' },
+  { id:'q2', req:1000, text:'«Культура не завоёвывает. Она убеждает.»' },
+  { id:'q3', req:10000, text:'«Орбиталь — это не место. Это состояние.»' },
+  { id:'q4', req:100000, text:'«Майнд думает быстрее, чем ты успеваешь моргнуть.»' },
+  { id:'q5', req:1000000, text:'«Special Circumstances делают то, чего не делают другие.»' }
+];
+
+let S = { energy:0, sections:{}, ach:{}, total:0, playTime:0, dailyQuotes:0, quoteDay:0 };
+try { S = JSON.parse(localStorage.getItem('orbital') || 'null') || S; } catch(e){}
+
+function save(){ localStorage.setItem('orbital', JSON.stringify(S)); }
+function fmt(n){ return n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':Math.floor(n); }
+
+function income(){
+  return SECTIONS.reduce((s,sec)=> s + (S.sections[sec.id]||0)*sec.base, 0);
+}
+
+function render(){
+  document.getElementById('energy').textContent = fmt(S.energy);
+  document.getElementById('perSec').textContent = '+' + fmt(income()) + ' / сек';
+
+  const box = document.getElementById('sections');
+  box.innerHTML = '';
+  SECTIONS.forEach(sec=>{
+    const unlocked = (S.playTime||0) >= (sec.unlock||0);
+    const cnt = S.sections[sec.id]||0;
+    const cost = Math.floor(sec.cost * Math.pow(sec.mult, cnt));
+    const can = unlocked && S.energy >= cost;
+    const el = document.createElement('div');
+    el.style.margin = '8px 0';
+    if(!unlocked){
+      const left = Math.ceil(((sec.unlock||0) - (S.playTime||0))/60);
+      el.innerHTML = `<div style="opacity:.5">${sec.name} <span style="color:#8b97b5">(откроется через ${left} мин)</span></div>`;
+    } else {
+      el.innerHTML = `<div>${sec.name} <b>x${cnt}</b> (+${sec.base}/сек)</div>
+        <button ${can?'':'disabled'} data-id="${sec.id}">Купить (${fmt(cost)})</button>`;
+    }
+    box.appendChild(el);
+  });
+
+  const ach = document.getElementById('ach');
+  ach.innerHTML = '';
+  QUOTES.forEach(q=>{
+    const done = S.ach[q.id];
+    const el = document.createElement('div');
+    el.className = 'quote';
+    el.style.opacity = done ? 1 : 0.4;
+    el.textContent = done ? q.text : `??? (нужно ${fmt(q.req)} энергии)`;
+    ach.appendChild(el);
+  });
+}
+
+document.getElementById('tap').onclick = ()=>{
+  S.energy += 1 + income()*0.1;
+  S.total += 1;
+  checkAch();
+  render(); save();
+};
+
+document.getElementById('sections').onclick = e=>{
+  const id = e.target.dataset.id;
+  if(!id) return;
+  const sec = SECTIONS.find(s=>s.id===id);
+  const cnt = S.sections[id]||0;
+  const cost = Math.floor(sec.cost * Math.pow(sec.mult, cnt));
+  if(S.energy >= cost){
+    S.energy -= cost;
+    S.sections[id] = cnt+1;
+    checkAch();
+    render(); save();
+  }
+};
+
+function checkAch(){
+  QUOTES.forEach(q=>{
+    if(!S.ach[q.id] && S.total >= q.req){
+      S.ach[q.id] = true;
+      alert(q.text);
+    }
+  });
+}
+
+setInterval(()=>{ S.playTime = (S.playTime||0) + 1; S.playTime = (S.playTime||0) + 1;
+  const inc = income();
+  if(inc>0){ S.energy += inc; S.total += inc; checkAch(); render(); save(); }
+}, 1000);
+
+render();
+
+const LIBRARY = window.LIBRARY || [
+  { id:"l1", req:50, text:"Деньги — признак бедности.", work:"Игрок", year:1988 }
+];
+
+const ACHIEVEMENTS = window.ACHIEVEMENTS || [
+  { id:"a1", req:10, name:"Первый контакт", desc:"Собрать 10 энергии" }
+];
+
+let shownLibrary = new Set();
+
+
+function canShowQuote(){
+  const today = new Date().toDateString();
+  if(S.quoteDay !== today){ S.quoteDay = today; S.dailyQuotes = 0; }
+  return S.dailyQuotes < 4;
+}
+function markQuoteShown(){
+  S.dailyQuotes = (S.dailyQuotes||0) + 1;
+  save();
+}
+
+function showBubble(text, src){
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  b.innerHTML = '<div class="q">«'+text+'»</div><div class="src">'+src+'</div>';
+  document.body.appendChild(b);
+  setTimeout(()=> b.remove(), 5200);
+}
+
+function checkLibrary(){
+  LIBRARY.forEach(item=>{
+    if(!shownLibrary.has(item.id) && S.total >= item.req){
+      shownLibrary.add(item.id);
+      showBubble(item.text, item.work + ', ' + item.year);
+    }
+  });
+}
+
+function renderLibrary(){
+  const box = document.getElementById('screen-library');
+  if(!box) return;
+  box.innerHTML = '<h2 style="color:#f5c451;text-align:center">Библиотека знаний Иэна Бэнкса</h2>';
+  LIBRARY.forEach(item=>{
+    const unlocked = S.total >= item.req;
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.style.opacity = unlocked ? 1 : 0.45;
+    el.style.cursor = unlocked ? 'pointer' : 'default';
+    if(unlocked){
+      el.innerHTML = '<div class="quote" style="font-size:14px">«'+item.text+'»</div><div style="font-size:11px;color:#8b97b5;margin-top:6px">'+item.work+', '+item.year+'</div>';
+      el.onclick = ()=>{ if(!canShowQuote()){ alert('Сегодня лимит бесплатных цитат исчерпан (4 в день). Остальные — за донат.'); return; } markQuoteShown();
+        document.querySelectorAll('#screen-library .card').forEach(c=>c.style.transform='');
+        el.style.transform = 'scale(1.03)';
+        showBubble(item.text, item.work + ', ' + item.year);
+      };
+    } else {
+      el.innerHTML = '<div style="color:#8b97b5">??? (откроется при '+fmt(item.req)+' энергии)</div>';
+    }
+    box.appendChild(el);
+  });
+}
+
+function renderAch(){
+  const box = document.getElementById('screen-ach');
+  if(!box) return;
+  box.innerHTML = '<h2 style="color:#f5c451;text-align:center">Достижения</h2><p style="color:#8b97b5;font-size:13px;text-align:center;margin-bottom:12px">Цель: поддерживать цивилизацию Культуры и осваивать новые звёздные системы.</p>';
+  ACHIEVEMENTS.forEach(a=>{
+    const done = S.total >= a.req;
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.style.opacity = done ? 1 : 0.55;
+    el.innerHTML = '<b>'+(done?'✓ ':'○ ')+a.name+'</b><div style="font-size:12px;color:#8b97b5;margin-top:4px">'+a.desc+'</div>';
+    box.appendChild(el);
+  });
+}
+
+// Вкладки
+
+
+// Подключаем проверку библиотеки
+const oldCheck = checkAch;
+checkAch = function(){ oldCheck(); checkLibrary(); };
+
+</script>
+
+<script>
+document.querySelectorAll('.tabs button').forEach(function(btn){
+  btn.onclick = function(){
+    document.querySelectorAll('.tabs button').forEach(function(b){ b.classList.remove('on'); });
+    document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('on'); });
+    btn.classList.add('on');
+    var tab = btn.getAttribute('data-tab');
+    var scr = document.getElementById('screen-' + tab);
+    if(scr) scr.classList.add('on');
+
+    if(tab === 'library'){
+      var box = document.getElementById('screen-library');
+      if(box){
+        box.innerHTML = '<h2 style="color:#f5c451;text-align:center">Библиотека знаний Иэна Бэнкса</h2>';
+        (window.LIBRARY || []).forEach(function(item, idx){
+          var need = (idx + 1) * 800;
+          var unlocked = (S.total || 0) >= need;
+          if(!unlocked) return;
+          var el = document.createElement('div');
+          el.className = 'card';
+          el.innerHTML = '<div class="quote">«'+item.text+'»</div><div style="font-size:11px;color:#8b97b5;margin-top:6px">'+item.work+', '+item.year+'</div>';
+          box.appendChild(el);
+        });
+        if(!box.querySelector('.card')) box.innerHTML += '<p style="color:#8b97b5;text-align:center">Цитаты откроются по мере развития орбитали.</p>';
+      }
+    }
+    if(tab === 'ach'){
+      var box = document.getElementById('screen-ach');
+      if(box){
+        box.innerHTML = '<h2 style="color:#f5c451;text-align:center">Достижения</h2><p style="color:#8b97b5;font-size:13px;text-align:center">Цель: поддерживать цивилизацию Культуры и осваивать новые звёздные системы.</p>
+<button id="resetBtn" style="margin-top:20px;background:#2a2030;color:#ff5470;border:1px solid #ff5470;border-radius:12px;padding:10px;width:100%;font-weight:700">Сбросить прогресс</button>
+';
+        (window.ACHIEVEMENTS || []).forEach(function(a){
+          var done = (S.total || 0) >= a.req;
+          var el = document.createElement('div');
+          el.className = 'card';
+          el.style.opacity = done ? '1' : '0.55';
+          el.innerHTML = '<b>'+(done?'✓ ':'○ ')+a.name+'</b><div style="font-size:12px;color:#8b97b5;margin-top:4px">'+a.desc+'</div>';
+          box.appendChild(el);
+        });
+      }
+    }
+  };
+});
+</script>
+<script>
+document.addEventListener('click', function(e){
+  if(e.target && e.target.id === 'resetBtn'){
+    if(confirm('Сбросить весь прогресс?')){
+      localStorage.removeItem('orbital');
+      location.reload();
+    }
+  }
+});
+</script>
+<script>
+(function(){
+  function bind(){
+    var buttons = document.querySelectorAll('.tabs button');
+    buttons.forEach(function(btn){
+      btn.onclick = function(){
+        buttons.forEach(function(b){ b.classList.remove('on'); });
+        document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('on'); });
+        btn.classList.add('on');
+        var tab = btn.getAttribute('data-tab');
+        var scr = document.getElementById('screen-' + tab);
+        if(scr) scr.classList.add('on');
+
+        if(tab === 'library'){
+          var box = document.getElementById('screen-library');
+          if(box){
+            box.innerHTML = '<h2 style="color:#f5c451;text-align:center">Библиотека знаний Иэна Бэнкса</h2>';
+            (window.LIBRARY || []).forEach(function(item, idx){
+              var need = (idx + 1) * 800;
+              if((window.S && window.S.total || 0) < need && (typeof S === 'undefined' || (S.total||0) < need)) return;
+              var total = (typeof S !== 'undefined' ? S.total : 0) || 0;
+              if(total < need) return;
+              var el = document.createElement('div');
+              el.className = 'card';
+              el.innerHTML = '<div class="quote">«'+item.text+'»</div><div style="font-size:11px;color:#8b97b5;margin-top:6px">'+item.work+', '+item.year+'</div>';
+              box.appendChild(el);
+            });
+            if(!box.querySelector('.card')) box.innerHTML += '<p style="color:#8b97b5;text-align:center">Цитаты откроются по мере развития орбитали.</p>';
+          }
+        }
+        if(tab === 'ach'){
+          var box = document.getElementById('screen-ach');
+          if(box){
+            box.innerHTML = '<h2 style="color:#f5c451;text-align:center">Достижения</h2><p style="color:#8b97b5;font-size:13px;text-align:center">Цель: поддерживать цивилизацию Культуры и осваивать новые звёздные системы.</p>';
+            (window.ACHIEVEMENTS || []).forEach(function(a){
+              var total = (typeof S !== 'undefined' ? S.total : 0) || 0;
+              var done = total >= a.req;
+              var el = document.createElement('div');
+              el.className = 'card';
+              el.style.opacity = done ? '1' : '0.55';
+              el.innerHTML = '<b>'+(done?'✓ ':'○ ')+a.name+'</b><div style="font-size:12px;color:#8b97b5;margin-top:4px">'+a.desc+'</div>';
+              box.appendChild(el);
+            });
+          }
+        }
+      };
+    });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
+  else bind();
+})();
+</script>
+</body>
+</html>
