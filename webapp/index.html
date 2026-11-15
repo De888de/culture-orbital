@@ -65,6 +65,13 @@ button:hover, .tabs button:hover, button.main:hover {
 }
 h1, h2, .bal { color: #00ff41 !important; }
 .ps { color: #00cc33 !important; }
+
+.card, .quote, #screen-library .card, #screen-ach .card {
+  border: 1px solid #00ff41 !important;
+  box-shadow: 0 0 6px rgba(0,255,65,0.25) !important;
+  background: #0a1a0a !important;
+  color: #00ff41 !important;
+}
 </style>
 </head>
 <body>
@@ -82,6 +89,8 @@ h1, h2, .bal { color: #00ff41 !important; }
   <button class="on" data-tab="main">Орбиталь</button>
   <button data-tab="library">Библиотека</button>
   <button data-tab="ach">Достижения</button>
+  <button data-tab="galaxies" id="tabGalaxies" style="opacity:0.4">Галактики</button>
+  <button data-tab="systems" id="tabSystems">Системы</button>
 </div>
 <div class="screens">
 <div id="screen-main" class="screen on">
@@ -96,6 +105,8 @@ h1, h2, .bal { color: #00ff41 !important; }
 </div>
 <div id="screen-library" class="screen"></div>
 <div id="screen-ach" class="screen"></div>
+<div id="screen-galaxies" class="screen"></div>
+<div id="screen-systems" class="screen"></div>
 </div>
 </div>
 
@@ -262,7 +273,7 @@ function checkLibrary(){
   LIBRARY.forEach(item=>{
     if(!shownLibrary.has(item.id) && S.total >= item.req){
       shownLibrary.add(item.id);
-      showBubble(item.text, item.work + ', ' + item.year);
+      if(window.sndAch) window.sndAch(); showBubble(item.text, item.work + ', ' + item.year);
     }
   });
 }
@@ -282,7 +293,7 @@ function renderLibrary(){
       el.onclick = ()=>{ if(!canShowQuote()){ alert('Сегодня лимит бесплатных цитат исчерпан (4 в день). Остальные — за донат.'); return; } markQuoteShown();
         document.querySelectorAll('#screen-library .card').forEach(c=>c.style.transform='');
         el.style.transform = 'scale(1.03)';
-        showBubble(item.text, item.work + ', ' + item.year);
+        if(window.sndAch) window.sndAch(); showBubble(item.text, item.work + ', ' + item.year);
       };
     } else {
       el.innerHTML = '<div style="color:#8b97b5">??? (откроется при '+fmt(item.req)+' энергии)</div>';
@@ -487,5 +498,81 @@ setInterval(function(){
     setTimeout(()=>t.remove(), 3500);
   }
 }, 25000);
-</script></body>
+</script>
+<script>
+(function(){
+  let actx;
+  function getCtx(){
+    if(!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    return actx;
+  }
+  function beep(freq, dur, type, vol){
+    try{
+      const c = getCtx();
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.type = type || 'square';
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || 0.08, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+      o.connect(g); g.connect(c.destination);
+      o.start(); o.stop(c.currentTime + dur);
+    }catch(e){}
+  }
+  window.sndClick = () => beep(880, 0.06, 'square', 0.06);
+  window.sndBuy = () => { beep(440, 0.08, 'square', 0.07); setTimeout(()=>beep(660, 0.1, 'square', 0.06), 60); };
+  window.sndAch = () => { [523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f, 0.12, 'square', 0.08), i*80)); };
+
+  document.addEventListener('click', function(e){
+    const t = e.target;
+    if(t.tagName === 'BUTTON' || t.closest('button')){
+      if(t.id === 'tap' || t.classList.contains('main')) window.sndClick();
+      else if(t.dataset && t.dataset.id) window.sndBuy();
+      else window.sndClick();
+    }
+  }, true);
+})();
+</script>
+<script>
+window.ACHIEVEMENTS = (window.ACHIEVEMENTS || []).concat([
+  { id:'a6', req:500000, name:'Контакт установлен', desc:'Собрать 500 000 энергии' },
+  { id:'a7', req:2000000, name:'Новая система', desc:'Собрать 2 000 000 энергии' },
+  { id:'a8', req:10000000, name:'Орбиталь стабильна', desc:'Собрать 10 000 000 энергии' },
+  { id:'a9', req:50000000, name:'Экспансия Культуры', desc:'Собрать 50 000 000 энергии' },
+  { id:'a10', req:200000000, name:'Майнд доволен', desc:'Собрать 200 000 000 энергии' }
+]);
+</script>
+<script>
+(function(){
+  const sysBtn = document.getElementById('tabSystems');
+  if(sysBtn){
+    sysBtn.style.opacity = '0.45';
+    sysBtn.title = 'Недостаточно энергии';
+  }
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('.tabs button');
+    if(!btn || btn.getAttribute('data-tab') !== 'systems') return;
+    const total = (typeof S !== 'undefined' ? S.total : 0) || 0;
+    if(total < 1000000){
+      e.preventDefault();
+      e.stopPropagation();
+      alert('Вкладка «Системы» откроется при 1 000 000 энергии.');
+      return false;
+    }
+  }, true);
+})();
+</script>
+
+<script>
+(function(){
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest('#tabGalaxies');
+    if(!btn) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    alert('Вкладка «Галактики» пока недоступна. Требуется больше энергии и прогресса.');
+  }, true);
+})();
+</script>
+</body>
 </html>
